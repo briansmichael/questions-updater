@@ -1,8 +1,11 @@
 package com.starfireaviation.questions.service;
 
+import com.starfireaviation.questions.model.Ref;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.crypto.InvalidCipherTextException;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Slf4j
@@ -11,8 +14,6 @@ public class RefService extends BaseService {
     /**
      * Refs.
      */
-    public static final String REFS_QUERY = "SELECT RefID, RefText, LastMod FROM Refs";
-
     public RefService(final String course, final String host, final String user, final String pass) {
         super(course, host, user, pass);
     }
@@ -21,37 +22,60 @@ public class RefService extends BaseService {
         log.info("Getting REFS table data for course: {}", course);
         long updateCount = 0;
         long insertCount = 0;
+        final String query = "SELECT RefID, RefText, LastMod FROM Refs";
+        try (Connection sqlLiteConn = getSQLLiteConnection();
+             Connection mysqlConn = getMySQLConnection();
+             PreparedStatement ps = sqlLiteConn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                final Long remoteId = rs.getLong(1);
+                final Ref ref = new Ref();
+                ref.setRefId(remoteId);
+                ref.setRefText(rs.getString(2));
+                ref.setLastModified(rs.getDate(3));
+                if (existsRef(ref.getRefId(), mysqlConn)) {
+                    final String update = "UPDATE ref SET text = ?, last_modified = ? WHERE ref_id = ?";
+                    updateCount += store(ref, update, mysqlConn);
+                } else {
+                    final String insert = "INSERT INTO ref (text, last_modified, ref_id) VALUES (?,?,?)";
+                    insertCount += store(ref, insert, mysqlConn);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
         log.info("Finished getting REFS table data for course: {}; Inserted: {}; Updated: {}",
                 course, insertCount, updateCount);
     }
 
-    /**
-     * Gets Refs from remote database.
-     *
-     * @param conn Remote database connection
-     * @throws SQLException SQLException
-     * @throws InvalidCipherTextException InvalidCipherTextException
-     */
-//    private void getRefs(final Connection sqlLiteConn, final Connection mysqlConn) {
-//        try (PreparedStatement ps = conn.prepareStatement(REFS_QUERY);
-//             ResultSet rs = ps.executeQuery()) {
-//            while (rs.next()) {
-//                final Long remoteId = rs.getLong(1);
-//                final RefEntity ref = refsRepository.findByRefId(remoteId).orElse(new RefEntity());
-//                ref.setRefId(remoteId);
-//                ref.setRefText(rs.getString(2));
-//                ref.setLastModified(rs.getDate(CommonConstants.THREE));
-//                try {
-//                    refsRepository.save(ref);
-//                } catch (SQLException e) {
-//                    log.error("Unable to save ref: {}.  Error message: {}",
-//                            ref.getRefText(), e.getMessage());
-//                }
-//            }
-//        } catch (SQLException e) {
-//            log.error("Error message: {}", e.getMessage());
-//        }
-//    }
+    private long store(final Ref ref, final String query, final Connection mysqlConn) {
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setString(1, ref.getRefText());
+            ps.setTimestamp(2, new java.sql.Timestamp(ref.getLastModified().getTime()));
+            ps.setLong(3, ref.getRefId());
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
+        return 0;
+    }
 
+    private boolean existsRef(final Long id, final Connection mysqlConn) {
+        final String query = "SELECT 1 FROM ref WHERE ref_id = ?";
+        ResultSet rs = null;
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setLong(1, id);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return Boolean.TRUE;
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        } finally {
+            try { rs.close(); } catch (Exception e) {}
+        }
+        return Boolean.FALSE;
+    }
 
 }
+

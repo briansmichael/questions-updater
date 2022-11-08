@@ -1,8 +1,11 @@
 package com.starfireaviation.questions.service;
 
+import com.starfireaviation.questions.model.QuestionReference;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.crypto.InvalidCipherTextException;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Slf4j
@@ -11,8 +14,6 @@ public class QuestionReferenceService extends BaseService {
     /**
      * Question References.
      */
-    public static final String QUESTION_REFERENCES_QUERY = "SELECT ID, QuestionID, RefID FROM QuestionsReferences";
-
     public QuestionReferenceService(final String course, final String host, final String user, final String pass) {
         super(course, host, user, pass);
     }
@@ -21,37 +22,59 @@ public class QuestionReferenceService extends BaseService {
         log.info("Getting QUESTION_REFERENCES table data for course: {}", course);
         long updateCount = 0;
         long insertCount = 0;
+        final String query = "SELECT ID, QuestionID, RefID FROM QuestionsReferences";
+        try (Connection sqlLiteConn = getSQLLiteConnection();
+             Connection mysqlConn = getMySQLConnection();
+             PreparedStatement ps = sqlLiteConn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                final QuestionReference questionReference = new QuestionReference();
+                questionReference.setId(rs.getLong(1));
+                questionReference.setQuestionId(rs.getLong(2));
+                questionReference.setRefId(rs.getLong(3));
+                if (existsQuestionReference(questionReference.getQuestionId(), mysqlConn)) {
+                    final String update = "UPDATE question_reference SET question_id = ?, ref_id = ? WHERE id = ?";
+                    updateCount += store(questionReference, update, mysqlConn);
+                } else {
+                    final String insert = "INSERT INTO question_reference (question_id, ref_id, id) VALUES (?,?,?)";
+                    insertCount += store(questionReference, insert, mysqlConn);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
         log.info("Finished getting QUESTION_REFERENCES table data for course: {}; Inserted: {}; Updated: {}",
                 course, insertCount, updateCount);
     }
 
-    /**
-     * Gets QuestionReferences from remote database.
-     *
-     * @param conn Remote database connection
-     * @throws SQLException SQLException
-     * @throws InvalidCipherTextException InvalidCipherTextException
-     */
-//    private void getQuestionReferences(final Connection sqlLiteConn, final Connection mysqlConn) {
-//        try (PreparedStatement ps = conn.prepareStatement(QUESTION_REFERENCES_QUERY);
-//             ResultSet rs = ps.executeQuery()) {
-//            while (rs.next()) {
-//                final Long remoteId = rs.getLong(1);
-//                final QuestionReferenceEntity questionReference = questionReferencesRepository.findByRemoteId(remoteId)
-//                        .orElse(new QuestionReferenceEntity());
-//                questionReference.setRemoteId(remoteId);
-//                questionReference.setQuestionId(rs.getLong(2));
-//                questionReference.setRefId(rs.getLong(CommonConstants.THREE));
-//                try {
-//                    questionReferencesRepository.save(questionReference);
-//                } catch (SQLException e) {
-//                    log.error("Unable to save question reference: {}.  Error message: {}",
-//                            questionReference.getRemoteId(), e.getMessage());
-//                }
-//            }
-//        } catch (SQLException e) {
-//            log.error("Error message: {}", e.getMessage());
-//        }
-//    }
+    private long store(final QuestionReference questionReference, final String query, final Connection mysqlConn) {
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setLong(1, questionReference.getQuestionId());
+            ps.setLong(2, questionReference.getRefId());
+            ps.setLong(3, questionReference.getId());
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    private boolean existsQuestionReference(final Long id, final Connection mysqlConn) {
+        final String query = "SELECT 1 FROM question_reference WHERE id = ?";
+        ResultSet rs = null;
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setLong(1, id);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return Boolean.TRUE;
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        } finally {
+            try { rs.close(); } catch (Exception e) {}
+        }
+        return Boolean.FALSE;
+    }
 
 }
+

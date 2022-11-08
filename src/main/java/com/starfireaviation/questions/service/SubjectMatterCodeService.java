@@ -1,6 +1,12 @@
 package com.starfireaviation.questions.service;
 
+import com.starfireaviation.questions.model.SubjectMatterCode;
 import lombok.extern.slf4j.Slf4j;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 @Slf4j
 public class SubjectMatterCodeService extends BaseService {
@@ -8,9 +14,6 @@ public class SubjectMatterCodeService extends BaseService {
     /**
      * Subject Matter Codes.
      */
-    public static final String SUBJECT_MATTER_CODES_QUERY = "SELECT ID, Code, SourceID, Description, LastMod, IsLSC "
-            + "FROM SubjectMatterCodes";
-
     public SubjectMatterCodeService(final String course, final String host, final String user, final String pass) {
         super(course, host, user, pass);
     }
@@ -19,38 +22,67 @@ public class SubjectMatterCodeService extends BaseService {
         log.info("Getting SUBJECT_MATTER_CODES table data for course: {}", course);
         long updateCount = 0;
         long insertCount = 0;
+        final String query = "SELECT ID, Code, SourceID, Description, LastMod, IsLSC FROM SubjectMatterCodes";
+        try (Connection sqlLiteConn = getSQLLiteConnection();
+             Connection mysqlConn = getMySQLConnection();
+             PreparedStatement ps = sqlLiteConn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                final SubjectMatterCode subjectMatterCode = new SubjectMatterCode();
+                subjectMatterCode.setId(rs.getLong(1));
+                subjectMatterCode.setCode(rs.getString(2));
+                subjectMatterCode.setSourceId(rs.getLong(3));
+                subjectMatterCode.setDescription(rs.getString(4));
+                subjectMatterCode.setLastModified(rs.getDate(5));
+                subjectMatterCode.setIsLSC(rs.getLong(6));
+                if (existsSubjectMatterCode(subjectMatterCode.getId(), mysqlConn)) {
+                    final String update = "UPDATE subject_matter_code SET code = ?, source_id = ?, description = ?, "
+                            + "last_modified = ?, is_lsc = ? WHERE id = ?";
+                    updateCount += store(subjectMatterCode, update, mysqlConn);
+                } else {
+                    final String insert = "INSERT INTO subject_matter_code (code, source_id, description, "
+                            + "last_modified, is_lsc, id) VALUES (?,?,?,?,?,?)";
+                    insertCount += store(subjectMatterCode, insert, mysqlConn);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
         log.info("Finished getting SUBJECT_MATTER_CODES table data for course: {}; Inserted: {}; Updated: {}",
                 course, insertCount, updateCount);
     }
 
-    /**
-     * Gets SubjectMatterCodes from remote database.
-     *
-     * @param conn Remote database connection
-     */
-//    private void getSubjectMatterCodes(final Connection sqlLiteConn, final Connection mysqlConn) {
-//        try (PreparedStatement ps = conn.prepareStatement(SUBJECT_MATTER_CODES_QUERY);
-//             ResultSet rs = ps.executeQuery()) {
-//            while (rs.next()) {
-//                final Long remoteId = rs.getLong(1);
-//                final SubjectMatterCodeEntity subjectMatterCode = subjectMatterCodesRepository
-//                        .findByRemoteId(remoteId).orElse(new SubjectMatterCodeEntity());
-//                subjectMatterCode.setRemoteId(remoteId);
-//                subjectMatterCode.setCode(rs.getString(2));
-//                subjectMatterCode.setSourceId(rs.getLong(CommonConstants.THREE));
-//                subjectMatterCode.setDescription(rs.getString(CommonConstants.FOUR));
-//                subjectMatterCode.setLastModified(rs.getDate(CommonConstants.FIVE));
-//                subjectMatterCode.setIsLSC(rs.getLong(CommonConstants.SIX));
-//                try {
-//                    subjectMatterCodesRepository.save(subjectMatterCode);
-//                } catch (SQLException e) {
-//                    log.error("Unable to save subject matter code: {}.  Error message: {}",
-//                            subjectMatterCode.getCode(), e.getMessage());
-//                }
-//            }
-//        } catch (SQLException e) {
-//            log.error("Error message: {}", e.getMessage());
-//        }
-//    }
+    private long store(final SubjectMatterCode subjectMatterCode, final String query, final Connection mysqlConn) {
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setString(1, subjectMatterCode.getCode());
+            ps.setLong(2, subjectMatterCode.getSourceId());
+            ps.setString(3, subjectMatterCode.getDescription());
+            ps.setTimestamp(4, new java.sql.Timestamp(subjectMatterCode.getLastModified().getTime()));
+            ps.setLong(5, subjectMatterCode.getIsLSC());
+            ps.setLong(6, subjectMatterCode.getId());
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    private boolean existsSubjectMatterCode(final Long id, final Connection mysqlConn) {
+        final String query = "SELECT 1 FROM subject_matter_code WHERE id = ?";
+        ResultSet rs = null;
+        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
+            ps.setLong(1, id);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return Boolean.TRUE;
+            }
+        } catch (SQLException e) {
+            log.error("Error message: {}", e.getMessage());
+        } finally {
+            try { rs.close(); } catch (Exception e) {}
+        }
+        return Boolean.FALSE;
+    }
 
 }
+
