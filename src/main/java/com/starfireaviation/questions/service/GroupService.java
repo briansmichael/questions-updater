@@ -34,11 +34,11 @@ public class GroupService extends BaseService {
                 group.setGroupAbbr(rs.getString(3));
                 group.setLastModified(rs.getDate(4));
                 if (groupExists(group.getGroupId(), mysqlConn)) {
-                    final String update = "UPDATE groups SET group_abbr = ?, group_name = ?, last_modified = ? "
+                    final String update = "UPDATE grps SET group_abbr = ?, group_name = ?, last_modified = ? "
                             + "WHERE group_id = ?";
                     updateCount += store(group, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO groups (group_abbr, group_name, last_modified, group_id) "
+                    final String insert = "INSERT INTO grps (group_abbr, group_name, last_modified, group_id) "
                             + "VALUES (?,?,?,?)";
                     insertCount += store(group, insert, mysqlConn);
                 }
@@ -64,7 +64,7 @@ public class GroupService extends BaseService {
     }
 
     private boolean groupExists(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM groups WHERE group_id = ?";
+        final String query = "SELECT 1 FROM grps WHERE group_id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);
