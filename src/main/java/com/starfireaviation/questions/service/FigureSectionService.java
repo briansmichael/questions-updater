@@ -62,7 +62,7 @@ public class FigureSectionService extends BaseService {
     }
 
     private boolean existsFigureSection(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM figure_sections WHERE id = ?";
+        final String query = "SELECT 1 FROM figure_sections WHERE figure_section_id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);
