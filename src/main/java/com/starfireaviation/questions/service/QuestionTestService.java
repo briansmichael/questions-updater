@@ -38,11 +38,11 @@ public class QuestionTestService extends BaseService {
                 questionTest.setLinkChapter(rs.getLong(6));
                 questionTest.setIsImportant(rs.getLong(7));
                 if (existsQuestionTest(questionTest.getId(), mysqlConn)) {
-                    final String update = "UPDATE question_test SET question_id = ?, test_id = ?, is_linked = ?, "
+                    final String update = "UPDATE questions_tests SET question_id = ?, test_id = ?, is_linked = ?, "
                             + "sort_by = ?, link_chapter = ?, is_important = ? WHERE id = ?";
                     updateCount += store(questionTest, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO question_test (question_id, test_id, is_linked, sort_by, "
+                    final String insert = "INSERT INTO questions_tests (question_id, test_id, is_linked, sort_by, "
                             + "link_chapter, is_important, id) VALUES (?,?,?,?,?,?,?)";
                     insertCount += store(questionTest, insert, mysqlConn);
                 }
@@ -71,7 +71,7 @@ public class QuestionTestService extends BaseService {
     }
 
     private boolean existsQuestionTest(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM question_test WHERE id = ?";
+        final String query = "SELECT 1 FROM questions_tests WHERE id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);

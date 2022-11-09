@@ -33,11 +33,11 @@ public class FigureSectionService extends BaseService {
                 figureSection.setFigureSection(rs.getString(2));
                 figureSection.setLastModified(rs.getDate(3));
                 if (existsFigureSection(figureSection.getFigureSectionId(), mysqlConn)) {
-                    final String update = "UPDATE figure_section SET figure_section = ?, last_modified = ? "
+                    final String update = "UPDATE figure_sections SET figure_section = ?, last_modified = ? "
                             + "WHERE figure_section_id = ?";
                     updateCount += store(figureSection, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO binary_data (figure_section, last_modified, "
+                    final String insert = "INSERT INTO figure_sections (figure_section, last_modified, "
                             + "figure_section_id) VALUES (?,?,?)";
                     insertCount += store(figureSection, insert, mysqlConn);
                 }
@@ -62,7 +62,7 @@ public class FigureSectionService extends BaseService {
     }
 
     private boolean existsFigureSection(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM figure_section WHERE id = ?";
+        final String query = "SELECT 1 FROM figure_sections WHERE id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);

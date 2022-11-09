@@ -34,10 +34,10 @@ public class RefService extends BaseService {
                 ref.setRefText(rs.getString(2));
                 ref.setLastModified(rs.getDate(3));
                 if (existsRef(ref.getRefId(), mysqlConn)) {
-                    final String update = "UPDATE ref SET text = ?, last_modified = ? WHERE ref_id = ?";
+                    final String update = "UPDATE refs SET text = ?, last_modified = ? WHERE ref_id = ?";
                     updateCount += store(ref, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO ref (text, last_modified, ref_id) VALUES (?,?,?)";
+                    final String insert = "INSERT INTO refs (text, last_modified, ref_id) VALUES (?,?,?)";
                     insertCount += store(ref, insert, mysqlConn);
                 }
             }
@@ -61,7 +61,7 @@ public class RefService extends BaseService {
     }
 
     private boolean existsRef(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM ref WHERE ref_id = ?";
+        final String query = "SELECT 1 FROM refs WHERE ref_id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);

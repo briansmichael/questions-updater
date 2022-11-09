@@ -35,11 +35,11 @@ public class SourceService extends BaseService {
                 source.setAbbreviation(rs.getString(4));
                 source.setLastModified(rs.getDate(5));
                 if (existsSource(source.getId(), mysqlConn)) {
-                    final String update = "UPDATE source SET author, title, abbreviation, last_modified = ? "
+                    final String update = "UPDATE sources SET author, title, abbreviation, last_modified = ? "
                             + "WHERE id = ?";
                     updateCount += store(source, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO source (author, title, abbreviation, last_modified, id) "
+                    final String insert = "INSERT INTO sources (author, title, abbreviation, last_modified, id) "
                             + "VALUES (?,?,?,?,?)";
                     insertCount += store(source, insert, mysqlConn);
                 }
@@ -66,7 +66,7 @@ public class SourceService extends BaseService {
     }
 
     private boolean existsSource(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM source WHERE id = ?";
+        final String query = "SELECT 1 FROM sources WHERE id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);

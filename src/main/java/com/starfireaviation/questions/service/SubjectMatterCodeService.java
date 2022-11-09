@@ -36,11 +36,11 @@ public class SubjectMatterCodeService extends BaseService {
                 subjectMatterCode.setLastModified(rs.getDate(5));
                 subjectMatterCode.setIsLSC(rs.getLong(6));
                 if (existsSubjectMatterCode(subjectMatterCode.getId(), mysqlConn)) {
-                    final String update = "UPDATE subject_matter_code SET code = ?, source_id = ?, description = ?, "
+                    final String update = "UPDATE subject_matter_codes SET code = ?, source_id = ?, description = ?, "
                             + "last_modified = ?, is_lsc = ? WHERE id = ?";
                     updateCount += store(subjectMatterCode, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO subject_matter_code (code, source_id, description, "
+                    final String insert = "INSERT INTO subject_matter_codes (code, source_id, description, "
                             + "last_modified, is_lsc, id) VALUES (?,?,?,?,?,?)";
                     insertCount += store(subjectMatterCode, insert, mysqlConn);
                 }
@@ -68,7 +68,7 @@ public class SubjectMatterCodeService extends BaseService {
     }
 
     private boolean existsSubjectMatterCode(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM subject_matter_code WHERE id = ?";
+        final String query = "SELECT 1 FROM subject_matter_codes WHERE id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);
