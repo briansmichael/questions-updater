@@ -32,7 +32,7 @@ public class QuestionReferenceService extends BaseService {
                 questionReference.setId(rs.getLong(1));
                 questionReference.setQuestionId(rs.getLong(2));
                 questionReference.setRefId(rs.getLong(3));
-                if (existsQuestionReference(questionReference.getQuestionId(), mysqlConn)) {
+                if (existsQuestionReference(questionReference.getId(), mysqlConn)) {
                     final String update = "UPDATE question_reference SET question_id = ?, ref_id = ? WHERE id = ?";
                     updateCount += store(questionReference, update, mysqlConn);
                 } else {

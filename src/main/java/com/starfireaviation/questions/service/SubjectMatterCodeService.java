@@ -37,11 +37,11 @@ public class SubjectMatterCodeService extends BaseService {
                 subjectMatterCode.setIsLSC(rs.getLong(6));
                 if (existsSubjectMatterCode(subjectMatterCode.getId(), mysqlConn)) {
                     final String update = "UPDATE subject_matter_codes SET code = ?, source_id = ?, description = ?, "
-                            + "last_modified = ?, is_lsc = ? WHERE id = ?";
+                            + "last_modified = ?, islsc = ? WHERE id = ?";
                     updateCount += store(subjectMatterCode, update, mysqlConn);
                 } else {
                     final String insert = "INSERT INTO subject_matter_codes (code, source_id, description, "
-                            + "last_modified, is_lsc, id) VALUES (?,?,?,?,?,?)";
+                            + "last_modified, islsc, id) VALUES (?,?,?,?,?,?)";
                     insertCount += store(subjectMatterCode, insert, mysqlConn);
                 }
             }

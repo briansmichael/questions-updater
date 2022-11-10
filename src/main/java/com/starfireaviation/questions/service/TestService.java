@@ -28,9 +28,8 @@ public class TestService extends BaseService {
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                final Long remoteId = rs.getLong(1);
                 final Test test = new Test();
-                test.setTestId(remoteId);
+                test.setTestId(rs.getLong(1));
                 test.setTestName(rs.getString(2));
                 test.setTestAbbr(rs.getString(3));
                 test.setGroupId(rs.getLong(4));
@@ -42,7 +41,7 @@ public class TestService extends BaseService {
                     updateCount += store(test, update, mysqlConn);
                 } else {
                     final String insert = "INSERT INTO library (test_name, test_abbr, group_id, sort_by, "
-                            + "last_modified, id) VALUES (?,?,?,?,?,?)";
+                            + "last_modified, test_id) VALUES (?,?,?,?,?,?)";
                     insertCount += store(test, insert, mysqlConn);
                 }
             }
@@ -59,8 +58,8 @@ public class TestService extends BaseService {
             ps.setString(2, test.getTestAbbr());
             ps.setLong(3, test.getGroupId());
             ps.setLong(4, test.getSortBy());
-            ps.setTimestamp(8, new java.sql.Timestamp(test.getLastModified().getTime()));
-            ps.setLong(9, test.getTestId());
+            ps.setTimestamp(5, new java.sql.Timestamp(test.getLastModified().getTime()));
+            ps.setLong(6, test.getTestId());
             return ps.executeUpdate();
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
