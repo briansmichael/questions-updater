@@ -35,8 +35,8 @@ public class SourceService extends BaseService {
                 source.setAbbreviation(rs.getString(4));
                 source.setLastModified(rs.getDate(5));
                 if (existsSource(source.getId(), mysqlConn)) {
-                    final String update = "UPDATE sources SET author, title, abbreviation, last_modified = ? "
-                            + "WHERE id = ?";
+                    final String update = "UPDATE sources SET author = ?, title = ?, abbreviation = ?, "
+                            + "last_modified = ? WHERE id = ?";
                     updateCount += store(source, update, mysqlConn);
                 } else {
                     final String insert = "INSERT INTO sources (author, title, abbreviation, last_modified, id) "
