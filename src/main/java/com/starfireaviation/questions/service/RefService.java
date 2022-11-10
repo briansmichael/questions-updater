@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 
 @Slf4j
 public class RefService extends BaseService {
@@ -51,7 +52,11 @@ public class RefService extends BaseService {
     private long store(final Ref ref, final String query, final Connection mysqlConn) {
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setString(1, ref.getRefText());
-            ps.setTimestamp(2, new java.sql.Timestamp(ref.getLastModified().getTime()));
+            if (ref.getLastModified() != null) {
+                ps.setTimestamp(2, new java.sql.Timestamp(ref.getLastModified().getTime()));
+            } else {
+                ps.setNull(2, Types.NULL);
+            }
             ps.setLong(3, ref.getRefId());
             return ps.executeUpdate();
         } catch (SQLException e) {
