@@ -36,11 +36,11 @@ public class TestService extends BaseService {
                 test.setSortBy(rs.getLong(5));
                 test.setLastModified(rs.getDate(6));
                 if (existsTest(test.getTestId(), mysqlConn)) {
-                    final String update = "UPDATE test SET test_name = ?, test_abbr = ?, group_id = ?, sort_by = ?, "
+                    final String update = "UPDATE tests SET test_name = ?, test_abbr = ?, group_id = ?, sort_by = ?, "
                             + "last_modified = ? WHERE test_id = ?";
                     updateCount += store(test, update, mysqlConn);
                 } else {
-                    final String insert = "INSERT INTO library (test_name, test_abbr, group_id, sort_by, "
+                    final String insert = "INSERT INTO tests (test_name, test_abbr, group_id, sort_by, "
                             + "last_modified, test_id) VALUES (?,?,?,?,?,?)";
                     insertCount += store(test, insert, mysqlConn);
                 }
@@ -68,7 +68,7 @@ public class TestService extends BaseService {
     }
 
     private boolean existsTest(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM test WHERE test_id = ?";
+        final String query = "SELECT 1 FROM tests WHERE test_id = ?";
         ResultSet rs = null;
         try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
             ps.setLong(1, id);
