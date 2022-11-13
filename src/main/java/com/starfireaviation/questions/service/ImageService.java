@@ -16,7 +16,7 @@ import java.sql.Types;
 @Slf4j
 public class ImageService extends BaseService {
 
-    public static final String IMAGE_DIR = "/mnt/web/questions-web-nfs-pvc-pvc-0aaa7e21-1538-46b3-9d62-3558c79050b0";
+    public static final String IMAGE_DIR = "/mnt/public/html/media";
 
     public ImageService(final String course, final String host, final String user, final String pass) {
         super(course, host, user, pass);
@@ -44,6 +44,9 @@ public class ImageService extends BaseService {
                 image.setImageName(rs.getString(CommonConstants.FIVE));
                 image.setDescription(rs.getString(CommonConstants.SIX));
                 image.setFileName(rs.getString(CommonConstants.SEVEN));
+                if (image.getFileName() != null) {
+                    image.setFileName(image.getFileName().replaceAll(" ", "_"));
+                }
                 image.setLastModified(rs.getDate(CommonConstants.NINE));
                 image.setFigureSectionId(rs.getLong(CommonConstants.TEN));
                 image.setPixelsPerNM(rs.getDouble(CommonConstants.ELEVEN));
