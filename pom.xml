@@ -12,6 +12,7 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <sa.common.version>0.1.4</sa.common.version>
     </properties>
 
     <dependencies>
@@ -49,6 +50,11 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.15.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.starfireaviation</groupId>
+            <artifactId>common</artifactId>
+            <version>${sa.common.version}</version>
         </dependency>
     </dependencies>
 

@@ -53,7 +53,8 @@ public class ImageService extends BaseService {
                 image.setSortBy(rs.getLong(CommonConstants.TWELVE));
                 image.setImageLibraryId(rs.getLong(CommonConstants.THIRTEEN));
                 if (image.getFileName() != null && !"".equals(image.getFileName())) {
-                    final String fileName = IMAGE_DIR + "/" + image.getFileName();
+                    //final String fileName = IMAGE_DIR + "/" + image.getFileName();
+                    final String fileName = IMAGE_DIR + "/" + image.getId() + ".png";
                     FileUtils.writeByteArrayToFile(new File(fileName), rs.getBytes(CommonConstants.EIGHT));
                 }
                 if (existsImage(image.getId(), mysqlConn)) {
