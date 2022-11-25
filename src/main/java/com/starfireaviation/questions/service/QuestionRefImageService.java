@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.QuestionRefImage;
+import com.starfireaviation.common.model.QuestionRefImage;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class QuestionRefImageService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, QuestionID, ImageID, Annotation FROM QuestionsRefImages";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -33,15 +36,7 @@ public class QuestionRefImageService extends BaseService {
                 questionRefImage.setQuestionId(rs.getLong(2));
                 questionRefImage.setImageId(rs.getLong(3));
                 questionRefImage.setAnnotation(rs.getString(3));
-                if (existsQuestionRefImage(questionRefImage.getId(), mysqlConn)) {
-                    final String update = "UPDATE questions_ref_images SET annotation = ?, image_id = ?, "
-                            + "question_id = ? WHERE id = ?";
-                    updateCount += store(questionRefImage, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO questions_ref_images (annotation, image_id, question_id, id) "
-                            + "VALUES (?,?,?,?)";
-                    insertCount += store(questionRefImage, insert, mysqlConn);
-                }
+                store(questionRefImage);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -50,34 +45,13 @@ public class QuestionRefImageService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final QuestionRefImage questionRefImage, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, questionRefImage.getAnnotation());
-            ps.setLong(2, questionRefImage.getImageId());
-            ps.setLong(3, questionRefImage.getQuestionId());
-            ps.setLong(4, questionRefImage.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsQuestionRefImage(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM questions_ref_images WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final QuestionRefImage questionRefImage) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/questionrefimage")
+                .body(Mono.just(questionRefImage), QuestionRefImage.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

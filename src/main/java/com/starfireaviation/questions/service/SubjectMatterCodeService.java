@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.SubjectMatterCode;
+import com.starfireaviation.common.model.SubjectMatterCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class SubjectMatterCodeService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, Code, SourceID, Description, LastMod, IsLSC FROM SubjectMatterCodes";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -35,15 +38,7 @@ public class SubjectMatterCodeService extends BaseService {
                 subjectMatterCode.setDescription(rs.getString(4));
                 subjectMatterCode.setLastModified(rs.getDate(5));
                 subjectMatterCode.setIsLSC(rs.getLong(6));
-                if (existsSubjectMatterCode(subjectMatterCode.getId(), mysqlConn)) {
-                    final String update = "UPDATE subject_matter_codes SET code = ?, source_id = ?, description = ?, "
-                            + "last_modified = ?, islsc = ? WHERE id = ?";
-                    updateCount += store(subjectMatterCode, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO subject_matter_codes (code, source_id, description, "
-                            + "last_modified, islsc, id) VALUES (?,?,?,?,?,?)";
-                    insertCount += store(subjectMatterCode, insert, mysqlConn);
-                }
+                store(subjectMatterCode);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -52,36 +47,13 @@ public class SubjectMatterCodeService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final SubjectMatterCode subjectMatterCode, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, subjectMatterCode.getCode());
-            ps.setLong(2, subjectMatterCode.getSourceId());
-            ps.setString(3, subjectMatterCode.getDescription());
-            ps.setTimestamp(4, new java.sql.Timestamp(subjectMatterCode.getLastModified().getTime()));
-            ps.setLong(5, subjectMatterCode.getIsLSC());
-            ps.setLong(6, subjectMatterCode.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsSubjectMatterCode(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM subject_matter_codes WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final SubjectMatterCode subjectMatterCode) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/subjectmattercodes")
+                .body(Mono.just(subjectMatterCode), SubjectMatterCode.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

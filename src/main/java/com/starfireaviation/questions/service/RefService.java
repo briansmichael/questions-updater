@@ -1,13 +1,16 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.Ref;
+import com.starfireaviation.common.model.Ref;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 
 @Slf4j
 public class RefService extends BaseService {
@@ -25,7 +28,6 @@ public class RefService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT RefID, RefText, LastMod FROM Refs";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -34,13 +36,7 @@ public class RefService extends BaseService {
                 ref.setRefId(remoteId);
                 ref.setRefText(rs.getString(2));
                 ref.setLastModified(rs.getDate(3));
-                if (existsRef(ref.getRefId(), mysqlConn)) {
-                    final String update = "UPDATE refs SET ref_text = ?, last_modified = ? WHERE ref_id = ?";
-                    updateCount += store(ref, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO refs (ref_text, last_modified, ref_id) VALUES (?,?,?)";
-                    insertCount += store(ref, insert, mysqlConn);
-                }
+                store(ref);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -49,37 +45,13 @@ public class RefService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final Ref ref, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, ref.getRefText());
-            if (ref.getLastModified() != null) {
-                ps.setTimestamp(2, new java.sql.Timestamp(ref.getLastModified().getTime()));
-            } else {
-                ps.setNull(2, Types.NULL);
-            }
-            ps.setLong(3, ref.getRefId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsRef(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM refs WHERE ref_id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final Ref ref) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/ref")
+                .body(Mono.just(ref), Ref.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.QuestionTest;
+import com.starfireaviation.common.model.QuestionTest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -25,7 +29,6 @@ public class QuestionTestService extends BaseService {
         final String query = "SELECT ID, QuestionID, TestID, IsLinked, SortBy, LinkChapter, IsImportant "
                 + "FROM QuestionsTests";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -37,15 +40,7 @@ public class QuestionTestService extends BaseService {
                 questionTest.setSortBy(rs.getLong(5));
                 questionTest.setLinkChapter(rs.getLong(6));
                 questionTest.setIsImportant(rs.getLong(7));
-                if (existsQuestionTest(questionTest.getId(), mysqlConn)) {
-                    final String update = "UPDATE questions_tests SET question_id = ?, test_id = ?, is_linked = ?, "
-                            + "sort_by = ?, link_chapter = ?, is_important = ? WHERE id = ?";
-                    updateCount += store(questionTest, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO questions_tests (question_id, test_id, is_linked, sort_by, "
-                            + "link_chapter, is_important, id) VALUES (?,?,?,?,?,?,?)";
-                    insertCount += store(questionTest, insert, mysqlConn);
-                }
+                store(questionTest);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -54,37 +49,13 @@ public class QuestionTestService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final QuestionTest questionTest, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, questionTest.getQuestionId());
-            ps.setLong(2, questionTest.getTestId());
-            ps.setLong(3, questionTest.getIsLinked());
-            ps.setLong(4, questionTest.getSortBy());
-            ps.setLong(5, questionTest.getLinkChapter());
-            ps.setLong(6, questionTest.getIsImportant());
-            ps.setLong(7, questionTest.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsQuestionTest(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM questions_tests WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final QuestionTest questionTest) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/questiontest")
+                .body(Mono.just(questionTest), QuestionTest.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

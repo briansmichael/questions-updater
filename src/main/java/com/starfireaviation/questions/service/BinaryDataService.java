@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.BinaryData;
+import com.starfireaviation.common.model.BinaryData;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class BinaryDataService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, Category, GroupID, ImageName, Desc, FileName, BinType, BinData, LastMod FROM BinaryData";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -37,15 +40,7 @@ public class BinaryDataService extends BaseService {
                 binaryData.setFileName(rs.getString(6));
                 binaryData.setBinType(rs.getLong(7));
                 binaryData.setLastModified(rs.getDate(9));
-                if (existsBinaryData(binaryData.getId(), mysqlConn)) {
-                    final String update = "UPDATE binary_data SET category = ?, group_id = ?, image_name = ?, "
-                            + "description = ?, file_name = ?, bin_type = ?, last_modified = ? WHERE id = ?";
-                    updateCount += store(binaryData, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO binary_data (category, group_id, image_name, description, "
-                            + "file_name, bin_type, last_modified, id) VALUES (?,?,?,?,?,?,?,?)";
-                    insertCount += store(binaryData, insert, mysqlConn);
-                }
+                store(binaryData);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -54,38 +49,13 @@ public class BinaryDataService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final BinaryData binaryData, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, binaryData.getCategory());
-            ps.setLong(2, binaryData.getGroupId());
-            ps.setString(3, binaryData.getImageName());
-            ps.setString(4, binaryData.getDescription());
-            ps.setString(5, binaryData.getFileName());
-            ps.setLong(6, binaryData.getBinType());
-            ps.setTimestamp(7, new java.sql.Timestamp(binaryData.getLastModified().getTime()));
-            ps.setLong(8, binaryData.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsBinaryData(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM binary_data WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final BinaryData binaryData) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/binarydata")
+                .body(Mono.just(binaryData), BinaryData.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

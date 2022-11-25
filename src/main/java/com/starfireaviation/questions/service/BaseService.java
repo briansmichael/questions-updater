@@ -1,5 +1,8 @@
 package com.starfireaviation.questions.service;
 
+//import io.netty.handler.ssl.SslContext;
+//import io.netty.handler.ssl.SslContextBuilder;
+//import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.engines.AESEngine;
@@ -8,7 +11,11 @@ import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.util.encoders.Base64;
+//import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.WebClient;
+//import reactor.netty.http.client.HttpClient;
 
+//import javax.net.ssl.SSLException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -35,11 +42,27 @@ public abstract class BaseService {
 
     protected String pass;
 
+    protected WebClient webClient = WebClient.create("https://questions.starfireaviation.com");
+
     public BaseService(final String c, final String h, final String u, final String p) {
         course = c;
         host = h;
         user = u;
         pass = p;
+
+//        try {
+//            SslContext sslContext = SslContextBuilder
+//                    .forClient()
+//                    .trustManager(InsecureTrustManagerFactory.INSTANCE)
+//                    .build();
+//            HttpClient httpClient = HttpClient
+//                    .create()
+//                    .baseUrl("https://questions.starfireaviation.com")
+//                    .secure(t -> t.sslContext(sslContext));
+//            webClient = WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+//        } catch (SSLException e) {
+//            log.error("Error: {}", e.getMessage());
+//        }
     }
 
     protected Connection getSQLLiteConnection() {
@@ -52,20 +75,6 @@ public abstract class BaseService {
             log.error(e.getMessage(), e);
         }
         return sqlLiteConn;
-    }
-
-    protected Connection getMySQLConnection() {
-        Connection mysqlConn = null;
-        do {
-            try {
-                String mysqlJDBCUrl = "jdbc:mysql://" + host + "/questions?user=" + user + "&password=" + pass;
-                Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
-                mysqlConn = DriverManager.getConnection(mysqlJDBCUrl);
-            } catch (SQLException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-                log.error(e.getMessage(), e);
-            }
-        } while (mysqlConn == null);
-        return mysqlConn;
     }
 
     /**

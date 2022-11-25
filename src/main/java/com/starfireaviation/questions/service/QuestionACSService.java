@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.QuestionACS;
+import com.starfireaviation.common.model.QuestionACS;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class QuestionACSService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, QuestionID, ACSID FROM QuestionsACS";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -32,13 +35,7 @@ public class QuestionACSService extends BaseService {
                 questionACS.setId(rs.getLong(1));
                 questionACS.setQuestionId(rs.getLong(2));
                 questionACS.setAcsId(rs.getLong(3));
-                if (existsQuestionACS(questionACS.getId(), mysqlConn)) {
-                    final String update = "UPDATE questions_acs SET acs_id = ?, question_id = ? WHERE id = ?";
-                    updateCount += store(questionACS, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO questions_acs (acs_id, question_id, id) VALUES (?,?,?)";
-                    insertCount += store(questionACS, insert, mysqlConn);
-                }
+                store(questionACS);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -47,33 +44,13 @@ public class QuestionACSService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final QuestionACS questionACS, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, questionACS.getAcsId());
-            ps.setLong(2, questionACS.getQuestionId());
-            ps.setLong(3, questionACS.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsQuestionACS(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM questions_acs WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final QuestionACS questionACS) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/questionacs")
+                .body(Mono.just(questionACS), QuestionACS.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

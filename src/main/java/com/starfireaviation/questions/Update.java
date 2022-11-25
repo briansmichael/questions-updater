@@ -19,11 +19,11 @@ import com.starfireaviation.questions.service.SubjectMatterCodeService;
 import com.starfireaviation.questions.service.TestService;
 import com.starfireaviation.questions.service.TextConstService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 public class Update {
@@ -96,6 +96,12 @@ public class Update {
                     TextConstService textConstService = new TextConstService(course, mysqlHost, mysqlUser, mysqlPass);
                     textConstService.run();
                 });
+        final WebClient webClient = WebClient.create("https://questions.starfireaviation.com");
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/answers/updatechoices")
+                .retrieve();
+
     }
 
 }

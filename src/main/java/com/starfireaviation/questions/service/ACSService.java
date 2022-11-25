@@ -1,8 +1,12 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.CommonConstants;
-import com.starfireaviation.questions.model.ACS;
+import com.starfireaviation.common.CommonConstants;
+import com.starfireaviation.common.model.ACS;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -25,7 +29,6 @@ public class ACSService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, GroupID, ParentID, Code, Description, IsCompletedCode, LastMod FROM ACS";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -37,15 +40,7 @@ public class ACSService extends BaseService {
                 acs.setDescription(rs.getString(CommonConstants.FIVE));
                 acs.setIsCompletedCode(rs.getLong(CommonConstants.SIX));
                 acs.setLastModified(rs.getDate(CommonConstants.SEVEN));
-                if (acsExists(acs.getId(), mysqlConn)) {
-                    final String update = "UPDATE acs SET code = ?, description = ?, group_id = ?, "
-                            + "is_completed_code = ?, last_modified = ?, parent_id = ? WHERE id = ?";
-                    updateCount += store(acs, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO acs (code, description, group_id, is_completed_code, "
-                            + "last_modified, parent_id, id) VALUES (?,?,?,?,?,?,?)";
-                    insertCount += store(acs, insert, mysqlConn);
-                }
+                store(acs);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -54,37 +49,12 @@ public class ACSService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private boolean acsExists(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM acs WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final ACS acs) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/acs")
+                .body(Mono.just(acs), ACS.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
-
-    private long store(final ACS acs, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, acs.getCode());
-            ps.setString(2, acs.getDescription());
-            ps.setLong(3, acs.getGroupId());
-            ps.setLong(4, acs.getIsCompletedCode());
-            ps.setTimestamp(5, new java.sql.Timestamp(acs.getLastModified().getTime()));
-            ps.setLong(6, acs.getParentId());
-            ps.setLong(7, acs.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
 }

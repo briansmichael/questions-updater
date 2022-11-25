@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.FigureSection;
+import com.starfireaviation.common.model.FigureSection;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class FigureSectionService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT FigureSectionID, FigureSection, LastMod FROM FigureSections";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -32,15 +35,7 @@ public class FigureSectionService extends BaseService {
                 figureSection.setFigureSectionId(rs.getLong(1));
                 figureSection.setFigureSection(rs.getString(2));
                 figureSection.setLastModified(rs.getDate(3));
-                if (existsFigureSection(figureSection.getFigureSectionId(), mysqlConn)) {
-                    final String update = "UPDATE figure_sections SET figure_section = ?, last_modified = ? "
-                            + "WHERE figure_section_id = ?";
-                    updateCount += store(figureSection, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO figure_sections (figure_section, last_modified, "
-                            + "figure_section_id) VALUES (?,?,?)";
-                    insertCount += store(figureSection, insert, mysqlConn);
-                }
+                store(figureSection);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -49,33 +44,13 @@ public class FigureSectionService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final FigureSection figureSection, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, figureSection.getFigureSection());
-            ps.setTimestamp(2, new java.sql.Timestamp(figureSection.getLastModified().getTime()));
-            ps.setLong(3, figureSection.getFigureSectionId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsFigureSection(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM figure_sections WHERE figure_section_id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final FigureSection figureSection) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/figuresection")
+                .body(Mono.just(figureSection), FigureSection.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }

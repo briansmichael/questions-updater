@@ -1,7 +1,11 @@
 package com.starfireaviation.questions.service;
 
-import com.starfireaviation.questions.model.Source;
+import com.starfireaviation.common.model.Source;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +28,6 @@ public class SourceService extends BaseService {
         long insertCount = 0;
         final String query = "SELECT ID, Author, Title, Abbreviation, LastMod FROM Sources";
         try (Connection sqlLiteConn = getSQLLiteConnection();
-             Connection mysqlConn = getMySQLConnection();
              PreparedStatement ps = sqlLiteConn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -34,15 +37,7 @@ public class SourceService extends BaseService {
                 source.setTitle(rs.getString(3));
                 source.setAbbreviation(rs.getString(4));
                 source.setLastModified(rs.getDate(5));
-                if (existsSource(source.getId(), mysqlConn)) {
-                    final String update = "UPDATE sources SET author = ?, title = ?, abbreviation = ?, "
-                            + "last_modified = ? WHERE id = ?";
-                    updateCount += store(source, update, mysqlConn);
-                } else {
-                    final String insert = "INSERT INTO sources (author, title, abbreviation, last_modified, id) "
-                            + "VALUES (?,?,?,?,?)";
-                    insertCount += store(source, insert, mysqlConn);
-                }
+                store(source);
             }
         } catch (SQLException e) {
             log.error("Error message: {}", e.getMessage());
@@ -51,35 +46,13 @@ public class SourceService extends BaseService {
                 course, insertCount, updateCount);
     }
 
-    private long store(final Source source, final String query, final Connection mysqlConn) {
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setString(1, source.getAuthor());
-            ps.setString(2, source.getTitle());
-            ps.setString(3, source.getAbbreviation());
-            ps.setTimestamp(4, new java.sql.Timestamp(source.getLastModified().getTime()));
-            ps.setLong(5, source.getId());
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private boolean existsSource(final Long id, final Connection mysqlConn) {
-        final String query = "SELECT 1 FROM sources WHERE id = ?";
-        ResultSet rs = null;
-        try (PreparedStatement ps = mysqlConn.prepareStatement(query)) {
-            ps.setLong(1, id);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return Boolean.TRUE;
-            }
-        } catch (SQLException e) {
-            log.error("Error message: {}", e.getMessage());
-        } finally {
-            try { rs.close(); } catch (Exception e) {}
-        }
-        return Boolean.FALSE;
+    private void store(final Source source) {
+        webClient
+                .method(HttpMethod.POST)
+                .uri("/api/sources")
+                .body(Mono.just(source), Source.class)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve();
     }
 
 }
